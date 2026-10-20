@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#285d55">
+<title>VisionScreen</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#172522;background:#f5f7f3}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;max-width:650px;margin:auto}
+header{background:#285d55;color:white;border-radius:22px;padding:22px;margin-bottom:18px}
+h1{margin:0 0 8px;font-size:28px}
+h2{font-size:19px}
+.card{background:white;border:1px solid #e0e5df;border-radius:18px;padding:16px;margin:12px 0}
+label{display:block;font-weight:600;margin:14px 0 7px}
+input[type=range]{width:100%;accent-color:#285d55}
+input[type=number],select{width:100%;padding:12px;border:1px solid #cbd4cc;border-radius:10px;font-size:16px}
+button{border:0;border-radius:12px;padding:13px 16px;font-size:16px;font-weight:600;background:#285d55;color:white;cursor:pointer}
+button.secondary{background:#e6eee9;color:#204c44}
+.sample{background:#fffef8;border:1px solid #dce3da;border-radius:14px;padding:16px;line-height:1.6;overflow-wrap:anywhere}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+small,.muted{color:#5c6962;line-height:1.5}
+nav{display:flex;gap:8px;position:sticky;top:0;background:#f5f7f3;padding:8px 0}
+nav button{flex:1;padding:11px 6px;font-size:14px}
+[hidden]{display:none!important}
+.notice{background:#fff2d8;color:#58451d;border-radius:12px;padding:13px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+<h1>◉ VisionScreen</h1>
+<div>Une lecture adaptée à votre confort.</div>
+<p>Personnalisez le texte et renseignez votre ordonnance.</p>
+</header>
+
+<nav>
+<button onclick="showTab('lecture')">Lecture</button>
+<button class="secondary" onclick="showTab('correction')">Ma correction</button>
+<button class="secondary" onclick="showTab('lunettes')">Lunettes</button>
+</nav>
+
+<section id="lecture">
+<div class="card">
+<h2>Aperçu de lecture</h2>
+<div id="sample" class="sample">
+<strong>Bienvenue dans VisionScreen</strong>
+<p>Adaptez la taille du texte, le contraste et l'espacement pour trouver une présentation confortable.</p>
+<p>Ces réglages modifient uniquement cet aperçu, pas les autres applications de votre téléphone.</p>
+</div>
+<label for="size">Taille du texte : <span id="sizeVal">125%</span></label>
+<input id="size" type="range" min="90" max="200" value="125" oninput="updatePreview()">
+<label for="spacing">Espacement des lignes : <span id="spacingVal">1,6</span></label>
+<input id="spacing" type="range" min="12" max="24" value="16" oninput="updatePreview()">
+<label for="contrast">Contraste de l'aperçu</label>
+<select id="contrast" onchange="updatePreview()">
+<option value="normal">Normal</option>
+<option value="dark">Fond sombre, texte clair</option>
+<option value="strong">Contraste renforcé</option>
+</select>
+<label for="warm">Teinte chaude</label>
+<input id="warm" type="range" min="0" max="50" value="0" oninput="updatePreview()">
+<p><button onclick="speak()">🔊 Écouter le texte</button> <button class="secondary" onclick="stopSpeak()">Arrêter</button></p>
+</div>
+<div class="notice">Important : VisionScreen améliore la présentation du texte, mais ne remplace pas les lunettes et ne garantit pas une vision nette sans correction optique.</div>
+</section>
+
+<section id="correction" hidden>
+<div class="card">
+<h2>Mon ordonnance</h2>
+<p class="muted">Recopiez les valeurs de votre ordonnance. Les valeurs sont conservées uniquement dans cette page pendant son utilisation.</p>
+<div id="fields"></div>
+<button onclick="savePrescription()">Valider les valeurs</button>
+<p id="saveMsg" class="muted"></p>
+</div>
+<div class="notice">SPH, CYL, AXE et ADD ne suffisent pas à calculer un filtre d'écran capable de remplacer une correction optique.</div>
+</section>
+
+<section id="lunettes" hidden>
+<div class="card">
+<h2>Port de lunettes</h2>
+<p>Choisissez votre état pour cette session.</p>
+<label for="glasses">Portez-vous vos lunettes actuellement ?</label>
+<select id="glasses">
+<option value="unknown">Je ne sais pas / non confirmé</option>
+<option value="yes">Oui, je porte mes lunettes</option>
+<option value="no">Non, je ne porte pas mes lunettes</option>
+</select>
+<p><button onclick="checkGlasses()">Confirmer</button></p>
+<p id="glassesMsg" class="muted"></p>
+</div>
+<div class="notice">Cette version web ne détecte pas automatiquement les lunettes. Une caméra ne sera utilisée qu'après une intégration dédiée et une autorisation explicite.</div>
+</section>
+
+<script>
+const eyes = ['Œil droit (OD)','Œil gauche (OG)'];
+const params = [['SPH (D)','sph'],['CYL (D)','cyl'],['AXE (°)','axis'],['ADD (D)','add']];
+document.getElementById('fields').innerHTML = eyes.map((eye,i) =>
+  '<h3>'+eye+'</h3><div class="row">'+params.map(([label,key]) =>
+  '<div><label for="'+key+i+'">'+label+'</label><input type="number" step="0.25" id="'+key+i+'" placeholder="Non renseigné"></div>'
+).join('')+'</div>').join('');
+
+function showTab(id){
+  ['lecture','correction','lunettes'].forEach(x=>document.getElementById(x).hidden=x!==id);
+  document.querySelectorAll('nav button').forEach((b,i)=>b.className=['lecture','correction','lunettes'][i]===id?'':'secondary');
+}
+function updatePreview(){
+ const size=Number(document.getElementById('size').value);
+ const spacing=Number(document.getElementById('spacing').value)/10;
+ const warm=Number(document.getElementById('warm').value)/100;
+ const mode=document.getElementById('contrast').value;
+ const s=document.getElementById('sample');
+ s.style.fontSize=size+'%';
+ s.style.lineHeight=spacing;
+ s.style.background=mode==='dark'?'#111827':mode==='strong'?'#fff':'#fffef8';
+ s.style.color=mode==='dark'?'#ffffff':mode==='strong'?'#000000':'#172522';
+ if(warm>0 && mode!=='dark') s.style.backgroundColor=`rgb(255,${Math.round(254-35*warm)},${Math.round(248-90*warm)})`;
+ document.getElementById('sizeVal').textContent=size+'%';
+ document.getElementById('spacingVal').textContent=spacing.toLocaleString('fr-FR');
+}
+function speak(){
+ if(!('speechSynthesis' in window)){alert('La lecture vocale n’est pas disponible dans ce navigateur.');return;}
+ const text=document.getElementById('sample').innerText;
+ const utterance=new SpeechSynthesisUtterance(text);
+ utterance.lang='fr-FR';
+ speechSynthesis.cancel();speechSynthesis.speak(utterance);
+}
+function stopSpeak(){if('speechSynthesis' in window)speechSynthesis.cancel();}
+function savePrescription(){
+ const values={};
+ ['sph','cyl','axis','add'].forEach(k=>values[k]=[document.getElementById(k+'0').value,document.getElementById(k+'1').value]);
+ document.getElementById('saveMsg').textContent='Valeurs saisies pour cette session. Aucun envoi à un serveur.';
+}
+function checkGlasses(){
+ const v=document.getElementById('glasses').value;
+ document.getElementById('glassesMsg').textContent=v==='yes'?'Vous avez indiqué porter vos lunettes.':v==='no'?'Vous avez indiqué ne pas porter vos lunettes.':'État non confirmé. Cette version ne détecte pas automatiquement les montures.';
+}
+updatePreview();
+</script>
+</body>
+</html>
